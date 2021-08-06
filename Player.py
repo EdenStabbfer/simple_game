@@ -1,10 +1,10 @@
 import pygame as pg
 
-from Settings import WINDOW_WIDTH, WINDOW_HEIGHT, G, PLAYER_HEIGHT
+from Settings import WINDOW_WIDTH, WINDOW_HEIGHT, G, PLAYER_HEIGHT, TILE_SIZE
 from functions import collision_detection
 
 half_width = WINDOW_WIDTH // 2
-half_height = WINDOW_HEIGHT // 2 - PLAYER_HEIGHT + 10
+half_height = WINDOW_HEIGHT // 2 - PLAYER_HEIGHT
 
 
 class Player(pg.sprite.Sprite):
@@ -13,7 +13,7 @@ class Player(pg.sprite.Sprite):
         self.x = x
         self.y = y
         self.size_x = size_x
-        self.size_y = size_y
+        self.size_y = size_y - 20
         self.speed = speed
         self.rect = pg.Rect(self.x, self.y, size_x, size_y)
         self.image = None
@@ -43,7 +43,7 @@ class Player(pg.sprite.Sprite):
                                                 self.size_y))
 
     def move(self, dx, dy, rects):
-        collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
+        # collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
         if dx != 0:
             self.x += dx
             self.rect.x = int(self.x)
@@ -52,11 +52,11 @@ class Player(pg.sprite.Sprite):
                 if dx > 0:
                     self.x = obj.left - self.size_x
                     self.rect.right = obj.left
-                    collision_types['right'] = True
+                    # collision_types['right'] = True
                 elif dx < 0:
                     self.x = obj.right
                     self.rect.left = obj.right
-                    collision_types['left'] = True
+                    # collision_types['left'] = True
         if dy != 0:
             self.y += dy
             self.rect.y = int(self.y)
@@ -66,11 +66,11 @@ class Player(pg.sprite.Sprite):
                 if dy > 0:
                     self.y = obj.top - self.size_y
                     self.rect.bottom = obj.top
-                    collision_types['bottom'] = True
+                    # collision_types['bottom'] = True
                 elif dy < 0:
                     self.y = obj.bottom
                     self.rect.top = obj.bottom
-                    collision_types['top'] = True
+                    # collision_types['top'] = True
 
     def key_down_event(self, event):
         if event.key == pg.K_d:
@@ -85,3 +85,6 @@ class Player(pg.sprite.Sprite):
             self.move_right = False
         if event.key == pg.K_a:
             self.move_left = False
+
+    def get_world_coords(self):
+        return int(self.x // TILE_SIZE), int(self.y // TILE_SIZE)
