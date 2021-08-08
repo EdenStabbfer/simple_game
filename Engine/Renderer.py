@@ -20,8 +20,10 @@ class Renderer:
 
     def draw_map(self, rects, ids):
         for i in range(len(rects)):
-            if i in self.textures.keys():
-                self.surface.blit(self.textures[ids[i]], rects[i])
+            if ids[i] in self.textures:
+                self.surface.blit(self.textures[ids[i]],
+                                  (rects[i].x + half_width - self.camera_scroll[0],
+                                   rects[i].y + half_height - self.camera_scroll[1]))
             else:
                 pg.draw.rect(self.surface,
                              self.unknown_texture_color,
