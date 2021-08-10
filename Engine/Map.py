@@ -3,7 +3,7 @@ from pickle import dump, load
 from math import ceil
 import os
 
-from Settings import WINDOW_WIDTH, WINDOW_HEIGHT, PLAYER_HEIGHT
+from Settings import HALF_WIDTH, HALF_HEIGHT
 
 """
 Карта делится на регионы, которые храняться в отдельных бинарных файлах 'reg.x.y'.bin
@@ -41,8 +41,8 @@ class Map:
         self.load_region(self.cur_reg[0] + 1, self.cur_reg[1], 'NE')
         self.load_region(self.cur_reg[0] + 1, self.cur_reg[1] + 1, 'SE')
 
-        self.wx_offset = ceil(WINDOW_WIDTH / tile_size) // 2  # Chunks visibility zone to left and right
-        self.wy_offset = ceil(WINDOW_HEIGHT / tile_size) // 2  # Chunks visibility zone to up and down
+        self.wx_offset = ceil(HALF_WIDTH / tile_size)  # Chunks visibility zone to left and right
+        self.wy_offset = ceil(HALF_HEIGHT / tile_size)  # Chunks visibility zone to up and down
 
     def update(self):
         # Изменять текущие позиции на карте
@@ -58,11 +58,12 @@ class Map:
             self.save_region(rx, ry, reg)
 
     def generate_region(self, rx, ry, reg: str):
-        grass_level = 32
+        grass_level = 30
         region = [[0] * self.region_size for i in range(self.region_size)]
         for wy in range(self.region_size):
             for wx in range(self.region_size):
                 # world generation here
+                # TODO: Завезти процедурную генерацию
                 if wy + ry * self.region_size == grass_level:
                     region[wy][wx] = 2
                 elif wy + ry * self.region_size >= grass_level:
@@ -94,13 +95,15 @@ class Map:
         is_crossed_top = top < 0
         is_crossed_bottom = bottom > self.region_size
 
+        # TODO: Упрастить структуру функции возврата объектов карты
+
         if not (is_crossed_left or is_crossed_right or is_crossed_top or is_crossed_bottom):
             rects, ids = self.get_tiles(left, right, top, bottom, self.cur_reg_mark)
         else:  # Если пересекаемся с другими
             if self.cur_reg_mark == 'NW':
                 if is_crossed_right and is_crossed_bottom:
                     rects, ids = self.get_tiles(left, self.region_size, top, self.region_size, self.cur_reg_mark)
-                    rects_ne, ids_ne = self.get_tiles(0, right - self.region_size, top, bottom - self.region_size, 'NE', rx_offset=1)
+                    rects_ne, ids_ne = self.get_tiles(0, right - self.region_size, top, self.region_size, 'NE', rx_offset=1)
                     rects_sw, ids_sw = self.get_tiles(left, self.region_size, 0, bottom - self.region_size, 'SW', ry_offset=1)
                     rects_se, ids_se = self.get_tiles(0, right - self.region_size, 0, bottom - self.region_size, 'SE', rx_offset=1, ry_offset=1)
                     rects.extend(rects_ne)
@@ -143,7 +146,7 @@ class Map:
             elif self.cur_reg_mark == 'NE':
                 if is_crossed_left and is_crossed_bottom:
                     rects, ids = self.get_tiles(0, right, top, self.region_size, self.cur_reg_mark)
-                    rects_nw, ids_nw = self.get_tiles(self.region_size + left, self.region_size, top, 0, 'NW', rx_offset=-1)
+                    rects_nw, ids_nw = self.get_tiles(self.region_size + left, self.region_size, top, self.region_size, 'NW', rx_offset=-1)
                     rects_sw, ids_sw = self.get_tiles(self.region_size + left, self.region_size, 0, bottom - self.region_size, 'SW', rx_offset=-1, ry_offset=1)
                     rects_se, ids_se = self.get_tiles(0, right, 0, bottom - self.region_size, 'SE', ry_offset=1)
                     rects.extend(rects_nw)
@@ -183,6 +186,92 @@ class Map:
                     rects_sw, ids_sw = self.get_tiles(left, right, 0, bottom - self.region_size, 'SE', ry_offset=1)
                     rects.extend(rects_sw)
                     ids.extend(ids_sw)
+            elif self.cur_reg_mark == 'SW':
+                if is_crossed_right and is_crossed_top:
+                    rects, ids = self.get_tiles(left, self.region_size, 0, bottom, self.cur_reg_mark)
+                    rects_nw, ids_nw = self.get_tiles(left, self.region_size, self.region_size + top, self.region_size, 'NW', ry_offset=-1)
+                    rects_ne, ids_ne = self.get_tiles(0, right - self.region_size, self.region_size + top, self.region_size, 'NE', rx_offset=1, ry_offset=-1)
+                    rects_se, ids_se = self.get_tiles(0, right - self.region_size, 0, bottom, 'SE', rx_offset=1)
+                    rects.extend(rects_nw)
+                    rects.extend(rects_ne)
+                    rects.extend(rects_se)
+                    ids.extend(ids_nw)
+                    ids.extend(ids_ne)
+                    ids.extend(ids_se)
+                elif is_crossed_left and is_crossed_bottom:
+                    self.regions['NE'] = self.regions['SW']
+                    self.cur_reg_mark = 'NE'
+                    self.load_region(self.cur_reg[0] - 1, self.cur_reg[1], 'NW')
+                    self.load_region(self.cur_reg[0] - 1, self.cur_reg[1] + 1, 'SW')
+                    self.load_region(self.cur_reg[0], self.cur_reg[1] + 1, 'SE')
+                    rects, ids = self.get_tiles(0, right, top, self.region_size, self.cur_reg_mark)
+                elif is_crossed_left:
+                    self.regions['SE'] = self.regions['SW']
+                    self.regions['NE'] = self.regions['NW']
+                    self.cur_reg_mark = 'SE'
+                    self.load_region(self.cur_reg[0] - 1, self.cur_reg[1], 'SW')
+                    self.load_region(self.cur_reg[0] - 1, self.cur_reg[1] - 1, 'NW')
+                    rects, ids = self.get_tiles(0, right, top, bottom, self.cur_reg_mark)
+                elif is_crossed_bottom:
+                    self.regions['NW'] = self.regions['SW']
+                    self.regions['NE'] = self.regions['SE']
+                    self.cur_reg_mark = 'NW'
+                    self.load_region(self.cur_reg[0], self.cur_reg[1] + 1, 'SW')
+                    self.load_region(self.cur_reg[0] + 1, self.cur_reg[1] + 1, 'SE')
+                    rects, ids = self.get_tiles(left, right, bottom, self.region_size, self.cur_reg_mark)
+                elif is_crossed_right:
+                    rects, ids = self.get_tiles(left, self.region_size, top, bottom, self.cur_reg_mark)
+                    rects_se, ids_se = self.get_tiles(0, right - self.region_size, top, bottom, 'SE', rx_offset=1)
+                    rects.extend(rects_se)
+                    ids.extend(ids_se)
+                else:
+                    rects, ids = self.get_tiles(left, right, bottom, self.region_size, self.cur_reg_mark)
+                    rects_nw, ids_nw = self.get_tiles(left, right, self.region_size + top, self.region_size, 'NW', ry_offset=-1)
+                    rects.extend(rects_nw)
+                    ids.extend(ids_nw)
+            elif self.cur_reg_mark == 'SE':
+                if is_crossed_left and is_crossed_top:
+                    rects, ids = self.get_tiles(0, right, 0, bottom, self.cur_reg_mark)
+                    rects_sw, ids_sw = self.get_tiles(self.region_size + left, self.region_size, 0, bottom, 'SW', rx_offset=-1)
+                    rects_nw, ids_nw = self.get_tiles(self.region_size + left, self.region_size, self.region_size + bottom, self.region_size,'NW', rx_offset=-1, ry_offset=-1)
+                    rects_ne, ids_ne = self.get_tiles(0, right, self.region_size + bottom, self.region_size, 'NE', ry_offset=-1)
+                    rects.extend(rects_nw)
+                    rects.extend(rects_sw)
+                    rects.extend(rects_ne)
+                    ids.extend(ids_nw)
+                    ids.extend(ids_sw)
+                    ids.extend(ids_ne)
+                elif is_crossed_right and is_crossed_bottom:
+                    self.regions['NW'] = self.regions['SE']
+                    self.cur_reg_mark = 'NW'
+                    self.load_region(self.cur_reg[0], self.cur_reg[1] + 1, 'SW')
+                    self.load_region(self.cur_reg[0] + 1, self.cur_reg[1] + 1, 'SE')
+                    self.load_region(self.cur_reg[0] + 1, self.cur_reg[1], 'NE')
+                    rects, ids = self.get_tiles(left, self.region_size, top, self.region_size, self.cur_reg_mark)
+                elif is_crossed_right:
+                    self.regions['SW'] = self.regions['SE']
+                    self.regions['NW'] = self.regions['NE']
+                    self.cur_reg_mark = 'SW'
+                    self.load_region(self.cur_reg[0] + 1, self.cur_reg[1], 'SE')
+                    self.load_region(self.cur_reg[0] + 1, self.cur_reg[1] - 1, 'NE')
+                    rects, ids = self.get_tiles(left, self.region_size, top, bottom, self.cur_reg_mark)
+                elif is_crossed_bottom:
+                    self.regions['NE'] = self.regions['SE']
+                    self.regions['NW'] = self.regions['SW']
+                    self.cur_reg_mark = 'NE'
+                    self.load_region(self.cur_reg[0], self.cur_reg[1] + 1, 'SE')
+                    self.load_region(self.cur_reg[0] - 1, self.cur_reg[1] + 1, 'SW')
+                    rects, ids = self.get_tiles(left, right, top, self.region_size, self.cur_reg_mark)
+                elif is_crossed_left:
+                    rects, ids = self.get_tiles(0, right, top, bottom, self.cur_reg_mark)
+                    rects_sw, ids_sw = self.get_tiles(self.region_size + left, self.region_size, top, bottom, 'SW', rx_offset=-1)
+                    rects.extend(rects_sw)
+                    ids.extend(ids_sw)
+                else:
+                    rects, ids = self.get_tiles(left, right, 0, bottom, self.cur_reg_mark)
+                    rects_ne, ids_ne = self.get_tiles(left, right, self.region_size + top, self.region_size, 'NE', ry_offset=-1)
+                    rects.extend(rects_ne)
+                    ids.extend(ids_ne)
         return rects, ids
 
     def get_tiles(self, left, right, top, bottom, reg_name, rx_offset=0, ry_offset=0):
@@ -199,6 +288,42 @@ class Map:
                                          self.tile_size))
                     ids.append(self.regions[reg_name][wy][wx])
         return rects, ids
+
+    def remove_block(self, x, y):
+        wx = (x - HALF_WIDTH) // self.tile_size
+        wy = (y - HALF_HEIGHT) // self.tile_size
+        x_sign = self.cur_reg_mark[1]
+        y_sign = self.cur_reg_mark[0]
+
+        if wx // self.region_size > self.cur_reg[0]:
+            x_sign = 'E'
+        elif wx // self.region_size < self.cur_reg[0]:
+            x_sign = 'W'
+        if wy // self.region_size > self.cur_reg[1]:
+            y_sign = 'S'
+        elif wy // self.region_size < self.cur_reg[1]:
+            y_sign = 'N'
+
+        # TODO: Убрать повторяющийся код и ввести максимальное расстояние от игрока (центра экрана)
+
+        self.regions[y_sign+x_sign][wy % self.region_size][wx % self.region_size] = 0
+
+    def put_block(self, x, y, id):
+        wx = (x - HALF_WIDTH) // self.tile_size
+        wy = (y - HALF_HEIGHT) // self.tile_size
+        x_sign = self.cur_reg_mark[1]
+        y_sign = self.cur_reg_mark[0]
+
+        if wx // self.region_size > self.cur_reg[0]:
+            x_sign = 'E'
+        elif wx // self.region_size < self.cur_reg[0]:
+            x_sign = 'W'
+        if wy // self.region_size > self.cur_reg[1]:
+            y_sign = 'S'
+        elif wy // self.region_size < self.cur_reg[1]:
+            y_sign = 'N'
+
+        self.regions[y_sign+x_sign][wy % self.region_size][wx % self.region_size] = id
 
     def save_region(self, rx, ry, reg: str):
         reg_file = open(f'Saves/{self.name}/region/reg.{rx}.{ry}.bin', 'wb')

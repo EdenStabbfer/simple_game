@@ -25,7 +25,7 @@ class EventHandler:
             for func in self.other_events:
                 func(event)
 
-    def bind(self, func, type):
+    def bind(self, func, type=None):
         if type == pg.KEYDOWN:
             self.key_down_events.append(func)
         elif type == pg.KEYUP:

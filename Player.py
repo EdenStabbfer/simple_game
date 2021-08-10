@@ -1,10 +1,7 @@
 import pygame as pg
 
-from Settings import WINDOW_WIDTH, WINDOW_HEIGHT, G, PLAYER_HEIGHT, TILE_SIZE
+from Settings import HALF_HEIGHT, HALF_WIDTH, G, TILE_SIZE
 from functions import collision_detection
-
-half_width = WINDOW_WIDTH // 2
-half_height = WINDOW_HEIGHT // 2 - PLAYER_HEIGHT
 
 
 class Player(pg.sprite.Sprite):
@@ -20,12 +17,14 @@ class Player(pg.sprite.Sprite):
 
         self.move_right = False
         self.move_left = False
-        self.falling = True
+        self.jumping = False
 
         self.vx = 0
         self.vy = 0
 
     def update(self, map_tiles):
+        # TODO: Решить проблему прыжка через отверстие высотой ~= высоте персонажа
+        # TODO: Сделать скорость независимой от fps
         if self.vy <= self.speed:
             self.vy += G
         self.vx = 0
@@ -37,12 +36,13 @@ class Player(pg.sprite.Sprite):
         self.move(self.vx, self.vy, map_tiles)
 
     def draw(self, surface: pg.Surface, scroll):
-        pg.draw.rect(surface, (255, 255, 255), (self.x + half_width - scroll[0],
-                                                self.y + half_height - scroll[1],
+        pg.draw.rect(surface, (255, 255, 255), (self.x + HALF_WIDTH - scroll[0],
+                                                self.y + HALF_HEIGHT - scroll[1],
                                                 self.size_x,
                                                 self.size_y))
 
     def move(self, dx, dy, rects):
+        # TODO: Отделить проверку коллизий в отдельную функцию
         # collision_types = {'top': False, 'bottom': False, 'right': False, 'left': False}
         if dx != 0:
             self.x += dx
@@ -67,6 +67,7 @@ class Player(pg.sprite.Sprite):
                     self.y = obj.top - self.size_y
                     self.rect.bottom = obj.top
                     # collision_types['bottom'] = True
+                    self.jumping = False
                 elif dy < 0:
                     self.y = obj.bottom
                     self.rect.top = obj.bottom
@@ -77,8 +78,10 @@ class Player(pg.sprite.Sprite):
             self.move_right = True
         if event.key == pg.K_a:
             self.move_left = True
-        if event.key == pg.K_SPACE:
-            self.vy = -self.speed*2.2
+        if event.key == pg.K_SPACE:  # Jumping
+            if not self.jumping:
+                self.vy = -self.speed*2.2
+                self.jumping = True
 
     def key_up_event(self, event):
         if event.key == pg.K_d:
