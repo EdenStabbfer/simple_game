@@ -2,6 +2,8 @@ import pygame as pg
 from pickle import dump, load
 from math import ceil
 import os
+import noise
+import time
 
 from Settings import HALF_WIDTH, HALF_HEIGHT
 
@@ -22,13 +24,19 @@ from Settings import HALF_WIDTH, HALF_HEIGHT
 
 """
 
+scale = 10
+octaves = 6
+persistence = 0.1
+lacunarity = 2
+
 
 class Map:
-    def __init__(self, player, name, tile_size, region_size):
+    def __init__(self, player, name, tile_size, region_size, seed=None):
         self.name = name
         self.player = player
         self.tile_size = tile_size  # In pixels
         self.region_size = region_size  # In tiles
+        self.seed = int(time.time())
 
         if not os.path.isdir(f'Saves/{name}/region/'):
             os.makedirs(f'Saves/{name}/region/')
@@ -44,6 +52,12 @@ class Map:
         self.wx_offset = ceil(HALF_WIDTH / tile_size)  # Chunks visibility zone to left and right
         self.wy_offset = ceil(HALF_HEIGHT / tile_size)  # Chunks visibility zone to up and down
 
+        # try:
+        #     self.seed = int(seed)
+        # except Exception('Bad seed format!'):
+
+            # TODO: придумать другой тип генерации сида
+
     def update(self):
         # Изменять текущие позиции на карте
         pass
@@ -54,20 +68,23 @@ class Map:
             self.regions[reg] = load(reg_file)
             reg_file.close()
         except FileNotFoundError:
-            self.generate_region(rx, ry, reg)
+            self.generate_region(ry, reg)
             self.save_region(rx, ry, reg)
 
-    def generate_region(self, rx, ry, reg: str):
-        grass_level = 30
+    def generate_region(self, ry, reg: str):
         region = [[0] * self.region_size for i in range(self.region_size)]
         for wy in range(self.region_size):
             for wx in range(self.region_size):
+                value = noise.pnoise2(wx/scale, wy/scale, octaves=octaves, persistence=persistence,
+                                      lacunarity=lacunarity, base=self.seed, repeatx=99999, repeaty=99999)
                 # world generation here
-                # TODO: Завезти процедурную генерацию
-                if wy + ry * self.region_size == grass_level:
-                    region[wy][wx] = 2
-                elif wy + ry * self.region_size >= grass_level:
-                    region[wy][wx] = 1
+                if wy + ry * self.region_size > 0:
+                    region[wy][wx] = 0
+                else:
+                    if value > -0.2:
+                        region[wy][wx] = 1
+                    else:
+                        region[wy][wx] = 0
         self.regions[reg] = region
 
     def get_tiles_within_display(self):
